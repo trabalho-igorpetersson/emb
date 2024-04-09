@@ -1,0 +1,45 @@
+version: "3.3"
+networks:
+  embarcados_network:   
+    name: embarcados_network
+    driver: bridge
+
+volumes:
+  postgres_data:
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    restart: always
+    env_file:
+      - ./envs/.postgres.env
+    networks:
+      - embarcados_network
+    ports:
+      - 12000:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - .docker/postgres/init_db/1_init_db.sh:/docker-entrypoint-initdb.d/1_init_db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 3
+  
+  keycloak:
+    image: quay.io/keycloak/keycloak:21.1
+    restart: always
+    command: 
+      - "start"
+      - "--spi-theme-static-max-age=-1"
+      - "--spi-theme-cache-themes=false" 
+      - "--spi-theme-cache-templates=false"
+      - "--features=declarative-user-profile"
+    networks:
+      - embarcados_network
+    env_file:
+      - ./envs/.keycloak.env
+    ports:
+      - 12004:8080
+    depends_on:
+      - postgres
